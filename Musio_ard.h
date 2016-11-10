@@ -2,6 +2,8 @@
 #define MUSIO_ARD_H
 #include "SerialPortManager.h"
 #include "Hand.h"
+#include "Device.h"
+#define MAX_DEV_NUM 2
 
 void toggleAnalog(int pin){
   pinMode(pin, OUTPUT);
@@ -23,20 +25,36 @@ class Musio_Ard {
   void update();
   Musio_Ard();
   void set_Device(Hand* l, Hand* r);
-  boolean connectMusio();
-  boolean checkDevice();
+ // void set_Device(Lower*);
+  void sendDevinfo();
   void triggerCMD(Message* msg);
 private:
+  int use_case;
+  Device* devList[MAX_DEV_NUM];
+  int dev_num;
   SerialPortManager* serial;
-  Hand* left;
-  Hand* right;
   boolean is_connected ;
   boolean is_handshaked ;
+  void add_Device(Device* dev);
+  void init_devices();
+  void update_devices();
   void pin_test();
 };
 
+void Musio_Ard::init_devices(){
+  for(int i=0;i<dev_num;i++)   devList[i]->init(); 
+}
+void Musio_Ard::update_devices(){
+  for(int i=0;i<dev_num;i++)   devList[i]->update(); 
+}
+
+void Musio_Ard::add_Device(Device* dev){
+  if(dev == NULL || dev_num >= MAX_DEV_NUM) return;
+  devList[dev_num++] = dev;
+}
+
+
 void Musio_Ard::pin_test(){
-  serial->writePacket("TEST START");
   toggleAnalog(A0);
   toggleDigital(4);
   toggleAnalog(A1);
@@ -44,84 +62,76 @@ void Musio_Ard::pin_test(){
   toggleAnalog(A2);
   toggleAnalog(A4);
 
- // lower pin connector test
   toggleDigital(2);
   toggleDigital(3);
   toggleDigital(7);
   toggleDigital(5);
   toggleAnalog(A3);
   toggleAnalog(A5);
-  serial->writePacket("TEST END");
+  
   serial->pin_test_flag = 0;
-  left->init();
-  right->init();
+  init_devices();
 }
   void Musio_Ard::update(){
     int pos = -1;
-   // Serial.print('l');
-    if(left != NULL) left->update();
-    //Serial.print('r');
-    if(right != NULL) right->update();
-
-    delay(10);
+    delay(10);  //wait for prepare to receive data from ap
     serial->readPacket();
-
-    if(serial->restart_flag == 1) {
-      is_handshaked = 0;
-      checkDevice();  //restart at device info
-    }
-    if(serial->pin_test_flag == 1){
-      pin_test();
-    }
+    if(serial->send_devinfo_flag == 1) sendDevinfo();  //restart at device info
+    if(serial->pin_test_flag == 1) pin_test();
+  
+    update_devices();
+      
     Message *msg = serial->fetchMSG();
     if(msg) {
-     // Serial.print("pop");
       triggerCMD(msg);
       free(msg->data);
     } 
   }
+  
   Musio_Ard::Musio_Ard(){
     serial = SerialPortManager::getInstance();  
+    dev_num = 0;
     is_connected = false;
     is_handshaked = false;
   }
+  
   void Musio_Ard::set_Device(Hand* l, Hand* r){
-    left = l;
-    right = r;
+    use_case = 0;
+    add_Device(l);
+    add_Device(r);
+
+    init_devices();
   }
-  boolean Musio_Ard::connectMusio(){    
-    while(!serial->check_connection()){}
-    is_connected = true;
-    return is_connected;
-  }
-  boolean Musio_Ard::checkDevice(){
-    int8_t left_dev_id = 0;
-    int8_t right_dev_id = 0;
-    int8_t use_case = 1;
-    if(left != NULL)  {
-      left_dev_id = left->getDevid();
-      use_case &= left->getUseCase();
+
+  
+ /* void Musio_Ard::set_Device(Lower* low){
+    use_case = 1;
+    add_Device(low);
+    init_devices();
+  }*/   
+  
+  void Musio_Ard::sendDevinfo(){
+    int8_t devid_H = 0;
+    int8_t devid_L = 0;
+    if(use_case == 0){//two hand use
+      devid_H = devList[0]->getDevid();
+      devid_L = devList[1]->getDevid();
     }
-    if(right != NULL) {
-      right_dev_id = right->getDevid();
-      use_case &= right->getUseCase();
-    }
-    while(!serial->handShake(left_dev_id,right_dev_id, use_case)){}
-    serial->restart_flag = 0;
-    is_handshaked =true;
-    return is_handshaked;
+    /*else if(use_case == 1){ //lower part use
+      devid_L = devList[0]->getDevid();
+    }*/
+    serial->sendDevinfoPacket(devid_H,devid_L, use_case);
   }
+  
   void Musio_Ard::triggerCMD(Message* msg){
+    uint8_t len = msg->len_data;
     uint8_t devid = msg->devid;
-    uint8_t LRvalue = msg->LRvalue;
+    uint8_t dev_pos = msg->dev_pos;
     uint8_t code = msg->code;
     uint8_t* data = msg->data;
-   
-    if(LRvalue == 0x00 && devid == left->getDevid()) {
-      left->triggerCMD(code,data);
-    }
-    if(LRvalue == 0x01 && devid == right->getDevid()) {
-      right->triggerCMD(code,data);
+    
+    for(int i=0;i<dev_num;i++){
+      if((devList[i]->getDevid() == devid) && (devList[i]->getDevPos() == dev_pos))       devList[i]->triggerCMD(code, data, len);  
     }
   }
   

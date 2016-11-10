@@ -4,19 +4,18 @@
 #include <Arduino.h>
 #include "Musio_Common.h"
 #include "QueueArray.h"
-#include <inttypes.h>
 
 
 SoftwareSerial musio_serial(SERIAL_RX, SERIAL_TX);
 class SerialPortManager{
   public :
   Message* fetchMSG();
-  void writePacket(char* str);
-  void readPacket();
+  void writeResponsePacket(Message *msg);
+  boolean readPacket();
   static SerialPortManager* getInstance();
   boolean check_connection();
-  boolean handShake(int8_t devid_L, int8_t devid_R, int8_t use_case);
-  int restart_flag=0;
+  void sendDevinfoPacket(int8_t devid_L, int8_t devid_R, int8_t use_case);
+  int send_devinfo_flag=0;
   int pin_test_flag =0;
   private :
   void parsePacket(int packet_end, int index);
@@ -24,15 +23,30 @@ class SerialPortManager{
   void flushBuffer();
   char rxbuf[RXBUF_SIZE]={};
   int rxbuf_index=0;
+  char txbuf[TXBUF_SIZE]={};
+  int txbuf_index=0;
   QueueArray<Message> msgQueue;
   SerialPortManager(){
     musio_serial.begin(9600);
+    flushBuffer();
   }
 };
-void SerialPortManager::writePacket(char* str){
-  musio_serial.print(str);
+void SerialPortManager::writeResponsePacket(Message *msg){
+  int index=0;
+  int len = msg->len_data;
+  txbuf[index++] = PACKET_START_CODE;
+  txbuf[index++] = RESPONSE_PACKET;
+  txbuf[index++] = msg->len_data;
+  txbuf[index++] = msg->dev_pos;
+  txbuf[index++] = msg->devid;
+  txbuf[index++] = msg->code;
+  uint8_t *ptr_d = msg->data;
+  while(len-- > 1){
+    txbuf[index++] = *(ptr_d++);
+  }
+  txbuf[index++] = PACKET_END_CODE;  
+  musio_serial.write(txbuf, index);
 }
-
 
  Message* SerialPortManager::fetchMSG(){
     Message* msg = msgQueue.pop();
@@ -40,33 +54,34 @@ void SerialPortManager::writePacket(char* str){
   }
   
   
-void SerialPortManager::readPacket(){
+boolean SerialPortManager::readPacket(){
     int i=0;
     while(musio_serial.available() > 0 && (i < RXBUF_SIZE)){            
       rxbuf[i++] = musio_serial.read();
       delay(2);
     }
     flushBuffer();
-    if(i > 0) 
+    if(i > 0) {
       parsePacket(i,0);
+      return true;
+    }
+    return false;
 }
-
-
 
 
 void SerialPortManager::parsePacket(int packet_end, int index){
     uint8_t len = 0;
     uint8_t packet_type ;   
-    //Serial.write(rxbuf[index]);
+      if(index + 2 >= packet_end) return;
       if(rxbuf[index++]==PACKET_START_CODE){
         // TYPE
         // HANDSHAKE : 0X01, CMD : 0X02, DATA : 0X03, RESTART : 0x04
         packet_type = rxbuf[index++];
         
-        if(packet_type == RESTART_PACKET && rxbuf[index] == PACKET_END_CODE) { //give up remain packets
-          restart_flag = 1;
-          msgQueue.clear();
-          return ;
+        if(packet_type == ASK_DEVINFO_PACKET && rxbuf[index] == PACKET_END_CODE) { //give up remain packets
+          send_devinfo_flag = 1;
+          parsePacket(packet_end, index++);
+          return;
         }
         else if(packet_type == PIN_TEST_PACKET && rxbuf[index] == PACKET_END_CODE) { //give up remain packets
           pin_test_flag = 1;
@@ -81,24 +96,18 @@ void SerialPortManager::parsePacket(int packet_end, int index){
           
           len = rxbuf[index++];
           Message msg = {};
-          msg.LRvalue = rxbuf[index++];
+          msg.len_data = len;
+          msg.dev_pos = rxbuf[index++];
           msg.devid = rxbuf[index++];  
           msg.code = rxbuf[index++];
           len--;
           msg.data = malloc(sizeof(char)*(len));
-          for(int l=0;l<len;l++)
-            msg.data[l] = rxbuf[index++];
-          
-          if(rxbuf[index++] == PACKET_END_CODE) {
-            //Serial.print("push");
-            msgQueue.push(msg);  
-          }
-          if(index + 2 < packet_end) parsePacket(packet_end, index);
+          for(int l=0;l<len;l++)        msg.data[l] = rxbuf[index++];       
+            
+          if(rxbuf[index++] == PACKET_END_CODE)        msgQueue.push(msg);           
+          parsePacket(packet_end, index);
         }
-      }else{
-        parsePacket(packet_end, index);     
-      }
-    
+      }else        parsePacket(packet_end, index);           
     return;
 }
   
@@ -107,28 +116,16 @@ static SerialPortManager* SerialPortManager::getInstance(){
     static SerialPortManager serialPort;
     return &serialPort;
 }
-
-boolean SerialPortManager::check_connection(){
-    boolean result = false;   
-    int i=0;   
-    //musio_serial.write("###");
-    delay(200); 
-    musio_serial.print("###");
-    
-    //while(musio_serial.available()){                
-    return waitSerialString(HOST_STRING,HOST_STR_LEN);
-}
   
-boolean SerialPortManager::handShake(int8_t devid_L, int8_t devid_R, int8_t use_case){
+void SerialPortManager::sendDevinfoPacket(int8_t devid_H, int8_t devid_L, int8_t use_case){
     boolean result = true;
     char hs_packet[6] = {PACKET_START_CODE,DEVINFO_PACKET,0,0,0,PACKET_END_CODE};
     hs_packet[2]= use_case;
-    hs_packet[3]= devid_L;
-    hs_packet[4]= devid_R;
- 
+    hs_packet[3]= devid_H;
+    hs_packet[4]= devid_L;
+       
     musio_serial.write(hs_packet,6);
-    delay(200);              
-    return waitSerialString(ACK_STRING,ACK_STR_LEN);
+    send_devinfo_flag = 0 ;
 }
 
 void SerialPortManager::flushBuffer(){
@@ -145,7 +142,7 @@ boolean SerialPortManager::waitSerialString(char* str, int len){
       if(c > 0) rxbuf[i++] = c;
     }
     flushBuffer();
-    
+   
     for(i=0;i<len;i++) {
       if(rxbuf[i] != str[i]){
         result = false;
