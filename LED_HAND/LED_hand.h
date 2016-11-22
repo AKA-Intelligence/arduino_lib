@@ -41,10 +41,7 @@ class LED_hand: public Hand {
   int brightness;
   int dim_flag;
   int dim_interval;
- // uint8_t dim_interval_l;
- // uint8_t dim_interval_r;
   unsigned long previousMillis ;
-  //int led_pin;
   void led_off_callback(uint8_t *cmd_data);
   void led_on_callback(uint8_t *cmd_data);
   void led_dim_callback(uint8_t *cmd_data);
@@ -61,8 +58,6 @@ void LED_hand::update(){
   
   if(dim_flag==1){
     unsigned long currentMillis = millis();
-    //if(dev_pos==0)      brightness = led_bri_l; 
-    //if(dev_pos==1)      brightness = led_bri_r;
     if (currentMillis - previousMillis >= dim_interval){
       brightness += fadeAmount;
       if (brightness <= 0 || brightness >= 255) {
@@ -86,9 +81,7 @@ void LED_hand::led_dim_callback(uint8_t *cmd_data){
 }
 
 void LED_hand::init(){
-    devid = LED_HAND_DEV_ID;
-    use_case = 0;
-    
+    devid = LED_HAND_DEV_ID;    
     dim_flag = 0;
     dim_interval = 50;
     brightness = 0;
@@ -96,7 +89,6 @@ void LED_hand::init(){
     previousMillis =0;
     
     led_pin = getHandPin(hand_analog);
-    //Serial.print(led_pin);
     pinMode(led_pin, OUTPUT);
     timerSetup();
   }
@@ -114,9 +106,7 @@ void LED_hand::init(){
     }
   }
   void LED_hand::led_on_callback(uint8_t *cmd_data){
-    
     dim_flag = 0;
-    //Serial.print(cmd_data);
     if(dev_pos==0) {
       led_bri_l = *(cmd_data);
       analogWrite(led_pin,led_bri_l) ;
@@ -128,8 +118,6 @@ void LED_hand::init(){
   }
   
   void LED_hand::triggerCMD(uint8_t code, uint8_t *data, uint8_t len){
-    //  Serial.print(code);
-  
     if(code == LED_ON_CMD_CODE)       led_on_callback(data);
     else if(code == LED_OFF_CMD_CODE)  led_off_callback(data);
     else if(code == LED_DIM_CMD_CODE)  led_dim_callback(data);

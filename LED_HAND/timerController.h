@@ -12,10 +12,6 @@
 #define PRESCAL_128   0X5
 #define PRESCAL_256   0X6
 #define PRESCAL_1024  0X7
-/*
- * hand device timer : timer 2
- * lower device timer: timer 1
-*/
 typedef void (*handler_callback)();
 typedef enum { _timer1, _timer2, Nbr_timer_size } timer_index_t;
 int timer_arr[2] = { 0, 0 };
@@ -23,7 +19,7 @@ int timer_arr[2] = { 0, 0 };
 void (*TIMER2_COMPB_handler)();
 void (*TIMER2_COMPA_handler)();
 void (*TIMER2_OVF_handler)();
-/*
+
 // TIMER1 INTERRUPT HANDLER FUNCTION POINTER
 void (*TIMER1_CAPT_handler)();
 void (*TIMER1_COMPB_handler)();
@@ -46,7 +42,7 @@ void setTimer1Handlers(handler_callback ovf_cb,handler_callback A_cb,handler_cal
   TIMER1_OVF_handler = ovf_cb;
   TIMER1_COMPA_handler = A_cb;
   TIMER1_COMPB_handler = B_cb;
-}*/
+}
 
 
 ISR(TIMER2_COMPB_vect){//timer2-channel B interrupt service routine 
@@ -58,19 +54,6 @@ ISR(TIMER2_COMPA_vect){//timer2-channel A interrupt service routine
 ISR(TIMER2_OVF_vect){//overflow for timmer 2,
     TIMER2_OVF_handler();
 }
-/*
-int getFreeTimer(){
-  for(int i=0;i<Nbr_timer_size;i++)
-    if(timer_arr[i] == 0) return i;
-  return -1;
-}
-void attachTimer(int timer){
-  timer_arr[timer]=1;
-}
-void setTCCR1A(uint8_t TCCRnA){
-  if(timer == 0) TCCR1A = TCCRnA;
-  else if(timer == 1) TCCR2A = TCCRnA;
-}*/
 void setTimer2OutPutComaperA(int value){
   OCR2A = value;
 }

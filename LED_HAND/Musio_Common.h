@@ -1,18 +1,14 @@
 #ifndef MUSIO_COMMON_H
 #define MUSIO_COMMON_H
 
+#include <Arduino.h>
+#if 1
 #define SERIAL_RX 6
 #define SERIAL_TX 9
-
-#define LEFT_DIG1 2
-#define LEFT_DIG2 4
-#define LEFT_AIN A0
-#define LEFT_PWM 3
-
-#define RIGHT_DIG1 7
-#define RIGHT_DIG2 8
-#define RIGHT_AIN A1
-#define RIGHT_PWM 5
+#else if
+#define SERIAL_RX 0
+#define SERIAL_TX 1
+#endif
 
 #define RXBUF_SIZE 100
 #define TXBUF_SIZE 200
@@ -29,10 +25,8 @@
 ///define packet type code
 //
 #define ASK_DEVINFO_PACKET 0X01
-//#define DEVINFO_PACKET 'a'
 #define DEVINFO_PACKET 0x02
 #define CMD_PACKET 0x03
-//#define CMD_PACKET 0x20
 #define RESPONSE_PACKET 0x04
 
 #define PIN_TEST_PACKET 0xFF
@@ -45,5 +39,10 @@ typedef struct message{
   uint8_t code;
   uint8_t* data;
 }Message;
-
+typedef enum { analog0, analog1, analog2 , analog3, analog4, analog5, digital1, digital2, digital3, digital4, pwm1, pwm2, _Nbr_pin } pin_t;
+typedef struct pin_use{
+  int pin;
+  uint8_t used;
+}Pin_Use;
+Pin_Use Pin_List[12] = { {A0,0}, {A1, 0},{A2, 0},{A3, 0},{A4, 0},{A5, 0},{2, 0},{4, 0},{7, 0},{8, 0},{3, 0},{5, 0} } ;
 #endif

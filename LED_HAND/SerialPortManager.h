@@ -14,9 +14,10 @@ class SerialPortManager{
   boolean readPacket();
   static SerialPortManager* getInstance();
   boolean check_connection();
-  void sendDevinfoPacket(int8_t devid_L, int8_t devid_R, int8_t use_case);
+  void sendDevinfoPacket(uint8_t* dev_infos, int size);
   int send_devinfo_flag=0;
   int pin_test_flag =0;
+  void writeStr(char* str, int len){musio_serial.write(str,len);}
   private :
   void parsePacket(int packet_end, int index);
   boolean waitSerialString(char* str, int len); 
@@ -117,14 +118,22 @@ static SerialPortManager* SerialPortManager::getInstance(){
     return &serialPort;
 }
   
-void SerialPortManager::sendDevinfoPacket(int8_t devid_H, int8_t devid_L, int8_t use_case){
-    boolean result = true;
-    char hs_packet[6] = {PACKET_START_CODE,DEVINFO_PACKET,0,0,0,PACKET_END_CODE};
-    hs_packet[2]= use_case;
-    hs_packet[3]= devid_H;
-    hs_packet[4]= devid_L;
-       
-    musio_serial.write(hs_packet,6);
+void SerialPortManager::sendDevinfoPacket(uint8_t* dev_infos, int dev_num){
+    int index =0;
+    int len = dev_num * 2;
+    int i=0;
+    
+    txbuf[index++] = PACKET_START_CODE;
+    txbuf[index++] = DEVINFO_PACKET;
+    txbuf[index++] = dev_num;
+    while(i < len){
+      txbuf[index++] = dev_infos[i++];
+    }
+    txbuf[index++] = PACKET_END_CODE;
+    
+    free(dev_infos);
+    
+    musio_serial.write(txbuf,index);
     send_devinfo_flag = 0 ;
 }
 
