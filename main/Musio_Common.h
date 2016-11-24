@@ -2,7 +2,7 @@
 #define MUSIO_COMMON_H
 
 #include <Arduino.h>
-#if 0
+#if 1
 #define SERIAL_RX 6
 #define SERIAL_TX 9
 #else if
