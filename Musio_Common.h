@@ -15,6 +15,7 @@
 #define RIGHT_PWM 5
 
 #define RXBUF_SIZE 100
+#define TXBUF_SIZE 200
 #define HOST_STRING "HOST"
 #define HOST_STR_LEN 4
 
@@ -26,15 +27,21 @@
 #define AKA_FIST_DEV 0x00
 
 ///define packet type code
-#define DEVINFO_PACKET 0x01
-#define CMD_PACKET 0x02
-#define RESPONSE_PACKET 0x03
-#define RESTART_PACKET 0x04
+//
+#define ASK_DEVINFO_PACKET 0X01
+//#define DEVINFO_PACKET 'a'
+#define DEVINFO_PACKET 0x02
+#define CMD_PACKET 0x03
+//#define CMD_PACKET 0x20
+#define RESPONSE_PACKET 0x04
+
 #define PIN_TEST_PACKET 0xFF
 #define INVALID_DEV_ID 0x00
+
 typedef struct message{
+  uint8_t len_data;
   uint8_t devid;
-  uint8_t LRvalue;
+  uint8_t dev_pos;
   uint8_t code;
   uint8_t* data;
 }Message;
