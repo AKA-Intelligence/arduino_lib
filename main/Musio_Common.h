@@ -5,7 +5,7 @@
 #if 1
 #define SERIAL_RX 6
 #define SERIAL_TX 9
-#else if
+#else
 #define SERIAL_RX 0
 #define SERIAL_TX 1
 #endif
@@ -45,4 +45,8 @@ typedef struct pin_use{
   uint8_t used;
 }Pin_Use;
 Pin_Use Pin_List[12] = { {A0,0}, {A1, 0},{A2, 0},{A3, 0},{A4, 0},{A5, 0},{2, 0},{4, 0},{7, 0},{8, 0},{3, 0},{5, 0} } ;
+
+void software_reset(){
+  asm volatile ("  jmp 0");  
+}
 #endif

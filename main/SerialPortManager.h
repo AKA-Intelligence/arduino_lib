@@ -12,7 +12,10 @@ class SerialPortManager{
   Message* fetchMSG();
   void writeResponsePacket(Message *msg);
   boolean readPacket();
-  static SerialPortManager* getInstance();
+  static SerialPortManager* getInstance(){
+    static SerialPortManager serialPort;
+    return &serialPort;
+  }
   boolean check_connection();
   void sendDevinfoPacket(uint8_t* dev_infos, int size);
   int send_devinfo_flag=0;
@@ -20,7 +23,6 @@ class SerialPortManager{
   void writeStr(char* str, int len){musio_serial.write(str,len);}
   private :
   void parsePacket(int packet_end, int index);
-  boolean waitSerialString(char* str, int len); 
   void flushBuffer();
   char rxbuf[RXBUF_SIZE]={};
   int rxbuf_index=0;
@@ -102,7 +104,7 @@ void SerialPortManager::parsePacket(int packet_end, int index){
           msg.devid = rxbuf[index++];  
           msg.code = rxbuf[index++];
           len--;
-          msg.data = malloc(sizeof(char)*(len));
+          msg.data = (uint8_t*)malloc(sizeof(char)*(len));
           for(int l=0;l<len;l++)        msg.data[l] = rxbuf[index++];       
             
           if(rxbuf[index++] == PACKET_END_CODE)        msgQueue.push(msg);           
@@ -113,10 +115,6 @@ void SerialPortManager::parsePacket(int packet_end, int index){
 }
   
 
-static SerialPortManager* SerialPortManager::getInstance(){
-    static SerialPortManager serialPort;
-    return &serialPort;
-}
   
 void SerialPortManager::sendDevinfoPacket(uint8_t* dev_infos, int dev_num){
     int index =0;
@@ -143,23 +141,6 @@ void SerialPortManager::flushBuffer(){
     }
 }
 
-boolean SerialPortManager::waitSerialString(char* str, int len){
-    boolean result = false;
-    int i=0;
-    while(musio_serial.available() && i<len){            
-      char c = musio_serial.read();
-      if(c > 0) rxbuf[i++] = c;
-    }
-    flushBuffer();
-   
-    for(i=0;i<len;i++) {
-      if(rxbuf[i] != str[i]){
-        result = false;
-        break;
-      }
-    }
-   if(i == len) result = true; 
-   return result;
-}
+
   
 #endif

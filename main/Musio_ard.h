@@ -43,7 +43,7 @@ void Musio_Ard::init_devices(){
   //add pin use list
   for(int i=0;i<dev_num;i++)   devList[i]->init(); 
 
-  for(int i=0;i<_Nbr_pin;i++)   
+  for(int i=0;i<_Nbr_pin;i++)
     if(Pin_List[i].used > 1) invalid_pin_config = 1;
 }
 void Musio_Ard::update_devices(){
@@ -71,7 +71,7 @@ void Musio_Ard::pin_test(){
   toggleAnalog(A5);
   
   serial->pin_test_flag = 0;
-  init_devices();
+  software_reset();
 }
   void Musio_Ard::update(){
     int pos = -1;
